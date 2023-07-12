@@ -1,9 +1,10 @@
-import { get_Products as getProductsService, 
-    getID_Products as getIDProductsService, 
-    post_Products as postProductsService, 
-    put_Products as putProductsService, 
-    delete_Products as deleteProductsService } from "../services/products.service.js";
-import { productModel } from "../dao/dbManagers/models/products.model.js";
+import Factory from "../dao/factory.js";
+const Products = Factory.Products;
+
+import { productModel } from "../dao/mongo/models/products.model.js";
+
+const products = new Products();
+import ProductDto from '../dao/DTOs/config.dto.js';
 
 //======== { get_Products / productos con paginación } ========
 const get_Products = async (req, res) => {
@@ -33,7 +34,7 @@ const get_Products = async (req, res) => {
         }
 
         // Obtener productos filtrados y ordenados
-        const products = await getProductsService(filter, options);
+        const productsResult = await products.get_Products(filter, options);
         
         // Calcular información de paginación
         const totalProducts = await productModel.countDocuments(filter);
@@ -50,7 +51,7 @@ const get_Products = async (req, res) => {
 
         res.send({
             status: "success",
-            payload: products,
+            payload: productsResult,
             totalPages,
             prevPage,
             nextPage,
@@ -62,7 +63,6 @@ const get_Products = async (req, res) => {
         });
     }
     catch (error){
-        console.error(error);
         res.status(500).send({ status: "error", error});
     }
 }
@@ -73,8 +73,8 @@ const getID_Products = async (req, res) => {
     const { pid } = req.params; 
 
     try {
-        const products = await getIDProductsService(pid);
-        res.send({ status: "success", payload: products });
+        const productsResult = await products.getID_Products(pid);
+        res.send({ status: "success", payload: productsResult });
     }
     catch (error){
         res.status(500).send({ status: "error", error});
@@ -87,28 +87,37 @@ const post_Products = async (req, res) => {
     const { title, description, price, thumbnail, stock, category } = req.body;
 
     if(!title || !description || !price || !thumbnail || !stock || !category){
-    return res.status(400).send({ status: "error", error: "incomplete values"})
+        return res.status(400).send({ status: "error", error: "incomplete values"})
     }
 
     try{
-    const existingProduct = await productModel.findOne({ title, description });
-    if (existingProduct) {
-        res.status(400).send({ status: "error", error: `El producto con título "${title}" y descripción "${description}" ya existe en la base de datos.` });
-    } else {
-        const result = await postProductsService({
-        title,
-        description,
-        price,
-        thumbnail,
-        stock,
-        category
-        });
+        const existingProduct = await productModel.findOne({ title, description });
+        if (existingProduct) {
+            res.status(400).send({ status: "error", error: `El producto con título "${title}" y descripción "${description}" ya existe en la base de datos.` });
+        } else {
+            const productDto = new ProductDto({
+                title,
+                description,
+                price,
+                thumbnail,
+                stock,
+                category
+            });
 
-        res.send({status: "success", payload: result})
-    }
+            const dbProduct = {...productDto};
+            delete dbProduct["title/category"];
+
+            const productsResult = await products.post_Products(dbProduct);
+
+            const response = {...productDto};
+            delete response.title;
+            delete response.category;
+
+            res.send({status: "success", payload: response});
+        }
     }
     catch (error){
-    res.status(500).send({ status: "error", error});
+        res.status(500).send({ status: "error", error});
     }
 };
 //======== { post_Products / crear productos } ========
@@ -119,31 +128,40 @@ const put_Products = async (req, res) => {
     const { pid } = req.params; 
 
     if(!title || !description || !price || !thumbnail || !stock || !category){
-    return res.status(400).send({ status: "error", error: "incomplete values"})
+        return res.status(400).send({ status: "error", error: "incomplete values"})
     }
 
     try{
-    const existingProduct = await productModel.findOne({ _id: { $ne: pid }, title, description });
-    if (existingProduct) {
-        res.status(400).send({ status: "error", error: `El producto con título "${title}" y descripción "${description}" ya existe en la base de datos.` });
-    } else {
-        const result = await putProductsService(pid, {
-        title,
-        description,
-        price,
-        thumbnail,
-        stock,
-        category
-        });
+        const existingProduct = await productModel.findOne({ _id: { $ne: pid }, title, description });
+        if (existingProduct) {
+            res.status(400).send({ status: "error", error: `El producto con título "${title}" y descripción "${description}" ya existe en la base de datos.` });
+        } else {
+            const productDto = new ProductDto({
+                title,
+                description,
+                price,
+                thumbnail,
+                stock,
+                category
+            });
 
-        res.send({status: "success", payload: result})
-    }
+            const dbProduct = { ...productDto, _id: pid };
+            delete dbProduct["title/category"];
+
+            const productsResult = await products.put_Products(pid, dbProduct);
+
+            const response = {...productDto};
+            delete response.title;
+            delete response.category;
+
+            res.send({status: "success", payload: response})
+        }
     }
     catch (error){
-    console.error(error);
-    res.status(500).send({ status: "error", error});
+        res.status(500).send({ status: "error", error});
     }
 };
+
 //======== { put_Products / actualizar productos } ========
 
 //======== { delete_Products / borrar productos } ========
@@ -152,13 +170,26 @@ const delete_Products = async (req, res) => {
     const { pid } = req.params; 
 
     try {
-        const products = await deleteProductsService(pid);
-        res.send({ status: "success", payload: products });
+        const productsResult = await products.delete_Products(pid);
+        res.send({ status: "success", payload: productsResult });
     }
     catch (error){
         res.status(500).send({ status: "error", error});
     }
 };
 //======== { delete_Products / borrar productos } ========
+
+const updateProductStock = async (req, res) => {
+    const { pid } = req.params;
+    const { newStock } = req.body;
+    try {
+        // Actualizar el stock del producto
+        await products.updateProductStock(pid, newStock);
+        res.send({ status: "success" });
+    } catch (error) {
+        res.status(500).send({ status: "error", error });
+    }
+};
+
 
 export { get_Products, getID_Products, post_Products, put_Products, delete_Products };

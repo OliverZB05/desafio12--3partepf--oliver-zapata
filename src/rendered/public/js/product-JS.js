@@ -40,7 +40,3 @@ const addToCart = async (productId) => {
     }
 
 };
-
-
-
-

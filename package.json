@@ -1,5 +1,5 @@
 {
-  "name": "desafio11--arquitectura--oliver-zapata",
+  "name": "desafio12--3partepf--oliver-zapata",
   "version": "1.0.0",
   "description": "## Pasos para ejecutarlo",
   "main": "index.js",
@@ -27,6 +27,7 @@
     "passport-github2": "^0.1.12",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "socket.io": "^4.6.2"
+    "socket.io": "^4.6.2",
+    "uuid": "^9.0.0"
   }
 }

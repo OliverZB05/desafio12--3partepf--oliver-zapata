@@ -1,7 +1,14 @@
 import passport from 'passport';
-import { create, getId, erase, getAll,  addProductToCart, updateProductToCart, updateCart, deleteProdsOneToCart, deleteProdsToCart } from "../services/carts.service.js";
-import { cartsModel } from "../dao/dbManagers/models/carts.model.js";
-import { productModel } from "../dao/dbManagers/models/products.model.js";
+
+import Factory from "../dao/factory.js";
+const Carts = Factory.Carts;
+const Products = Factory.Products;
+
+const cartInstance = new Carts();
+const productInstance = new Products();
+
+import TicketService from '../service/ticket.service.js';
+const ticketServiceInstance = new TicketService();
 
 //======== { getAll_Carts / mostrar todos los carritos } ========
 const getAll_Carts = async (req, res, next) => {
@@ -13,10 +20,20 @@ const getAll_Carts = async (req, res, next) => {
             return res.status(401).send({ status: "error", error: "Unauthorized" });
         }
         req.user = user;
+
+        if (!Array.isArray(req.user.carts)) {
+            throw new Error("User object does not have a valid carts property");
+        }
+        
         try {
             // Obtenga solo los carritos asociados con el usuario actual
             const cartIds = req.user.carts.map(c => c.cart);
-            const carts = await getAll(cartIds);
+            /* const carts = await getAll(cartIds); */
+            const carts = await cartInstance.getAll(cartIds);
+
+            if (carts.some(cart => !Array.isArray(cart.products))) {
+                throw new Error("Some cart objects do not have a valid products property");
+            }            
 
             // Transforma la respuesta
             const transformedCarts = carts.map(cart => {
@@ -30,7 +47,6 @@ const getAll_Carts = async (req, res, next) => {
 
             res.send({ status: 'success', payload: transformedCarts });
         } catch (error) {
-            console.error(error);
             res.status(500).send({ error: error.message });
         }
     })(req, res, next);
@@ -56,9 +72,8 @@ const getID_Carts = async (req, res, next) => {
             }
 
             // Consigue el carrito
-            const cart = await getId(cid);
+            const cart = await cartInstance.getId(cid);
             if (!cart) {
-                console.log("No existe: " + cart);
                 return res.status(404).send({ error: 'Cart not found' });
             }
 
@@ -70,7 +85,6 @@ const getID_Carts = async (req, res, next) => {
 
             res.send({ status: "success", payload: [cart] });
         } catch (error) {
-            console.error(error);
             res.status(500).send({ status: "error", error });
         }
     })(req, res, next);
@@ -80,7 +94,6 @@ const getID_Carts = async (req, res, next) => {
 //======== { post_Carts / crear los carritos } =======
 const post_Carts = async (req, res, next) => {
     passport.authenticate('jwt', { session: false }, async (err, user, info) => {
-        console.log('user:', user); // Agrega esta línea para imprimir el valor de user
         if (err) {
             return next(err);
         }
@@ -91,7 +104,7 @@ const post_Carts = async (req, res, next) => {
         const { cart } = req.body;
         try {
             // Crea el carrito
-            const result = await create({ cart });
+            const result = await cartInstance.create({ cart });
 
             // Asociar el carrito con el usuario actual
             req.user.carts.push({ cart: result._id });
@@ -112,10 +125,9 @@ const postProds_Carts = async (req, res) => {
     const quantity = req.body.quantity || 1;
 
     try {
-        const result = await addProductToCart(cartId, prodId, quantity);
+        const result = await cartInstance.addProductToCart(cartId, prodId, quantity);
         res.send({ status: 'success', payload: result });
     } catch (error) {
-        console.error(error);
         res.status(500).send({ error: error.message });
     }
 };
@@ -127,10 +139,9 @@ const put_Carts = async (req, res) => {
     const sort = req.query.sort;
 
     try {
-        const result = await updateCart(cartId, sort, req.query.page, req.query.limit);
+        const result = await cartInstance.updateCart(cartId, sort, req.query.page, req.query.limit);
         res.send(result);
     } catch (error) {
-        console.error(error);
         res.status(500).send({ error: error.message });
     }
 };
@@ -143,10 +154,9 @@ const putProds_Carts = async (req, res) => {
     const quantity = req.body.quantity || 1;
 
     try {
-        const result = await updateProductToCart(cartId, prodId, quantity);
+        const result = await cartInstance.updateProductToCart(cartId, prodId, quantity);
         res.send({ status: 'success', payload: result });
     } catch (error) {
-        console.error(error);
         res.status(500).send({ error: error.message });
     }
 };
@@ -160,11 +170,10 @@ const deleteProdsOne_Carts = async (req, res) => {
     const quantity = req.body.quantity || 1;
 
     try {
-    const remainingQuantity = await deleteProdsOneToCart(cartId, prodId, quantity);
+    const remainingQuantity = await cartInstance.deleteProdsOneToCart(cartId, prodId, quantity);
     res.send({ status: 'success', payload: { id: prodId, quantity: remainingQuantity } });
     }
     catch (error) {
-    console.error(error);
     res.status(500).send({ error: error.message });
     }
 };
@@ -175,11 +184,10 @@ const delete_Carts = async (req, res) => {
     const { cid } = req.params; 
 
     try {
-        const result = await erase(cid);
+        const result = await cartInstance.erase(cid);
         res.send({ status: "success", payload: result });
     }
     catch (error){
-        console.log(error)
         res.status(500).send({ status: "error", error});
     }
 };
@@ -190,15 +198,86 @@ const deleteProds_Carts = async (req, res) => {
     const cartId = req.params.cid;
 
     try {
-    const result = await deleteProdsToCart(cartId);
+    const result = await cartInstance.deleteProdsToCart(cartId);
 
     // Enviar respuesta al cliente
     res.send({ status: 'success', payload: { products: [] } });
     } catch (error) {
-    console.error(error);
     res.status(500).send({ error: error.message });
     }
 };
 //======== { deleteProds_Carts / borrar todos los productos de un carrito } =======
 
-export { getAll_Carts, getID_Carts, post_Carts, postProds_Carts, put_Carts, putProds_Carts, deleteProdsOne_Carts, delete_Carts, deleteProds_Carts };
+const purchase_Cart = async (req, res, next) => {
+    passport.authenticate('jwt', { session: !1 }, async (err, user, info) => {
+        if (err) { return next(err) }
+        if (!user) { return res.status(401).send({ status: "error", error: "Unauthorized" }) }
+        req.user = user;
+        const { cid } = req.params;
+        try {
+            // Obtener el carrito con el id especificado
+            const cartIds = req.user.carts.map(c => c.cart.toString());
+            if (!cartIds.includes(cid)) { return res.status(404).send({ error: 'Cart not found' }) }
+            const cart = await cartInstance.getId(cid);
+            if (!cart) { return res.status(404).send({ error: 'Cart not found' }) }
+
+            // Verificar el stock de los productos en el carrito
+            let productsToPurchase = [];
+            let productsOutOfStock = [];
+
+            if (Array.isArray(cart.products)) {
+                for (let product of cart.products) {
+                    // Obtener la información del producto
+                    const productInfo = await productInstance.getID_Products(product.id);
+                
+                    // Verificar si hay suficiente stock para el producto
+                    if (product.quantity <= productInfo.stock) {
+                        // Hay suficiente stock, restar la cantidad del stock del producto
+                        await productInstance.updateProductStock(product.id, productInfo.stock - product.quantity);
+                
+                        // Agregar el producto a productsToPurchase
+                        productsToPurchase.push(product);
+                    } else {
+                        // No hay suficiente stock, agregar el id del producto a productsOutOfStock
+                        productsOutOfStock.push(product.id);
+                    }
+                }
+            }
+
+            // Calcular el monto total de la compra
+            let totalAmount = 0;
+            for (let product of productsToPurchase) {
+                totalAmount += product.price * product.quantity;
+            }
+
+            // Generar un ticket con los datos de la compra
+            const ticket = await ticketServiceInstance.createTicket({
+                amount: totalAmount,
+                purchase_datetime: new Date(),
+                purchaser: req.user.email,
+                user: req.user._id,
+                products: productsToPurchase
+            });
+
+            // Devolver una respuesta con el ticket y los productos que no pudieron procesarse
+            res.send({
+                status: 'success',
+                payload: {
+                    ticket,
+                    productsOutOfStock
+                }
+            });
+
+            // Actualizar el carrito para que solo contenga los productos que no pudieron comprarse
+            // Aquí debes actualizar el carrito para que solo contenga los productos en productsOutOfStock
+        } catch (error) {
+            res.status(500).send({ error: error.message })
+        }
+    })(req, res, next)
+}
+
+
+
+
+
+export { getAll_Carts, getID_Carts, post_Carts, postProds_Carts, put_Carts, putProds_Carts, deleteProdsOne_Carts, delete_Carts, deleteProds_Carts, purchase_Cart };

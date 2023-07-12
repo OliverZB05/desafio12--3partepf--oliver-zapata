@@ -78,18 +78,56 @@ res.send({ status: 'success', user: req.user });
 
 
 //========= Logout =========
-router.get('/logout', (req, res) => {
-// Limpiando cookie de JWT
-res.clearCookie('jwt');
+const logout = (req, res) => {
+    // Limpiando cookie de JWT
+    res.clearCookie('jwt');
 
-//Destruir sesión
-req.session.destroy(err => {
-if (err) return res.status(500).send({ status: 'error', error: 'Logout fail' });
-res.redirect('/')
-})
-});
+    //Destruir sesión
+    req.session.destroy(err => {
+        if (err) return res.status(500).send({ status: 'error', error: 'Logout fail' });
+        res.redirect('/')
+    })
+};
+
+router.get('/logout', logout);
+
 //========= Logout =========
 
-export default router;
+export { router as default, logout };
 
+
+
+//#############----{ CONCEPTOS }----#############
+
+
+// ➤ Explicación de lo que pasa en sessions.router.js
+
+/* en el archivo sessions.router.js, se está utilizando Passport para autenticar
+y manejar las solicitudes de registro, inicio de sesión, restablecimiento 
+de contraseña y cierre de sesión de los usuarios. Las funciones
+passport.authenticate(...) se encargan de llamar a las estrategias
+correspondientes y manejar el resultado de la autenticación */
+
+
+
+
+// ➤ Diferencias entre las rutas /github y la ruta /github-callback
+
+/* La ruta /github y la ruta /github-callback son utilizadas para autenticar al usuario 
+utilizando su cuenta de GitHub.
+
+La ruta /github utiliza la función passport.authenticate('github', ...) para redirigir
+al usuario a la página de inicio de sesión de GitHub. En esta página, el usuario debe
+ingresar sus credenciales de GitHub y autorizar el acceso a su cuenta. Una vez que
+el usuario autoriza el acceso, es redirigido a la ruta /github-callback.
+
+La ruta /github-callback utiliza la función passport.authenticate('github', ...) para
+completar el proceso de autenticación. Esta función verifica si el usuario autorizó
+correctamente el acceso a su cuenta de GitHub y, si es así, crea un token JWT para
+el usuario y lo almacena en una cookie. Finalmente, el usuario es redirigido a la
+página de productos.
+
+En resumen, la ruta /github se utiliza para redirigir al usuario a la página de inicio 
+de sesión de GitHub, mientras que la ruta /github-callback se utiliza para completar el
+proceso de autenticación una vez que el usuario autoriza el acceso a su cuenta de GitHub. */
 

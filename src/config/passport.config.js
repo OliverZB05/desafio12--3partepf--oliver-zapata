@@ -7,6 +7,7 @@ import { createHash, isValidPassword } from '../utils.js';
 import passportJWT from 'passport-jwt';
 import { PRIVATE_KEY } from './contans.js';
 import config from './config.js';
+import { UserDto } from '../dao/DTOs/config.dto.js';
 
 const JWTStrategy = passportJWT.Strategy;
 const ExtractJWT = passportJWT.ExtractJwt;
@@ -102,7 +103,6 @@ passport.use('register', new LocalStrategy({
         const token = jwt.sign({ id: result._id }, PRIVATE_KEY);
         return done(null, { user: result, token })
     } catch (error) {
-        console.log(error);
         return done(`Error al obtener el usuario: ${error}`)
     }
 }));
@@ -166,7 +166,10 @@ passport.use('current', new JWTStrategy({
         // Buscando al usuario en la base de datos
         const user = await userModel.findById(jwtPayload.id);
         if (user) {
-            return done(null, user);
+            // Creando una instancia del DTO y pasándole el objeto user
+            const userDto = new UserDto(user);
+            // Devolviendo la instancia del DTO en lugar del objeto user
+            return done(null, userDto);
         } else {
             return done(null, false);
         }
@@ -196,3 +199,37 @@ passport.deserializeUser(async function(id, done) {
 
 };
 export default initializePassport;
+
+
+
+//#############----{ CONCEPTOS }----#############
+
+
+// ➤ Diferencia entre serialización y deserialización
+
+/* La serialización es el proceso de guardar información del usuario en una sesión, mientras 
+que la deserialización es el proceso de recuperar esa información de la sesión para su uso
+en solicitudes posteriores. Estos procesos son utilizados por Passport para mantener la
+autenticación de sesión de un usuario */
+
+
+
+
+// ➤ ¿Que es done?
+
+/* done es una función de callback que se utiliza en las estrategias de Passport para indicar cuándo 
+se ha completado el proceso de autenticación. Esta función toma como argumentos un objeto de error,
+un objeto de usuario y un objeto de información.
+
+El primer argumento, el objeto de error, debe ser null si no hubo errores durante el proceso de 
+autenticación. Si hubo un error, debes pasar el objeto de error como primer argumento.
+
+El segundo argumento, el objeto de usuario, debe ser el objeto de usuario si la autenticación 
+fue exitosa. Si la autenticación no fue exitosa, debes pasar false como segundo argumento.
+
+El tercer argumento, el objeto de información, es opcional y puede contener información adicional 
+sobre el proceso de autenticación. Por ejemplo, puedes pasar un objeto con una propiedad message 
+para indicar por qué falló la autenticación.
+
+En resumen, done es una función de callback que se utiliza en las estrategias de Passport para
+ indicar cuándo se ha completado el proceso de autenticación y si fue exitoso o no. */
