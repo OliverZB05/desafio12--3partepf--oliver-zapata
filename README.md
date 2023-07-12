@@ -1,4 +1,4 @@
-# desafio10--authentication--oliver-zapata
+# desafio12--3partepf--oliver-zapata
 
 ## Pasos para ejecutarlo
 
@@ -28,7 +28,10 @@ dentro del carrito con el id: 646b7bbcb035a38e23da5ad8
 En el archivo principal app.js usa 3 routers:
 
 app.use("/", viewsProductRouter);            (views.products.js)
-app.use("/api/products", productsRouter);    (products.router.js)
+
+### Solo para admins
+app.use('/api/products', passport.authenticate('jwt', { session: false }), checkRole('admin'), productsRouter);    (products.router.js) 
+
 app.use("/api/carts", cartsRouter);          (carts.router.js)
 app.use("/api/sessions", sessionsRouter);    (session.router.js)
 app.use("/", viewsLoginRouter);              (views.login.js)
@@ -141,8 +144,14 @@ http://localhost:8080/api/sessions/github-callback
 
 En este router se renderizan las vistas de registro y de login mostradas en las rutas anotadas del router session.router.js, solo que en sessions.router.js se encuentra la lógica para que el funcionamiento de esas vistas funcione
 
-### Nuevas implementaciones
+### Otras implementaciones
 
 - Ahora se maneja jwt en conjunto con passport<br>
 - Se añadió una nueva ruta http://localhost:8080/api/sessions/current donde se ve el usuario
 - Ahora los métodos get del carrito de compras está asociado a los usuarios por lo que solo se verán los carritos que haya creado el usuario registrado
+
+### Nuevas implementaciones
+
+- Se agregaron variables de entorno
+- Se aplicaron patrones de diseño y una nueva arquitectura de capas (eso explicado en el documento de texto "Arquitectura de mi proyecto")
+- Se agrego un modelo de tickets y lógica para esa orden de compra
